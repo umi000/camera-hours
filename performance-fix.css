@@ -1,0 +1,90 @@
+/* Performance and Overlap Fixes */
+
+/* Prevent layout shifts */
+* {
+    box-sizing: border-box;
+}
+
+/* Optimize rendering - but don't contain dropdowns */
+.dashboard-form,
+.console-section,
+.progress-section,
+.results-section {
+    /* Removed contain to allow dropdowns to escape */
+    transform: translateZ(0);
+}
+
+/* Fix calendar positioning to prevent overlap */
+.custom-date-input {
+    /* Removed isolation to allow dropdowns to escape stacking context */
+}
+
+.custom-calendar {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    z-index: 10002 !important;
+}
+
+/* Ensure dropdowns don't overlap */
+.custom-dropdown,
+.custom-multi-select {
+    /* Removed isolation to allow dropdowns to escape stacking context */
+}
+
+.dropdown-options {
+    z-index: 10001 !important;
+}
+
+.multi-select-dropdown {
+    z-index: 10001 !important;
+}
+
+/* Prevent text selection during interactions */
+.multi-select-trigger,
+.dropdown-trigger,
+.calendar-trigger {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Optimize scroll performance */
+.console-output-box,
+.options-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Reduce repaints */
+.progress-fill {
+    will-change: width;
+}
+
+/* Fix mobile calendar overlap */
+@media (max-width: 768px) {
+    .custom-calendar {
+        position: fixed;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) translateZ(0);
+        max-width: 90vw;
+        width: 90vw;
+        z-index: 10003 !important;
+    }
+    
+    .custom-date-input {
+        z-index: auto;
+    }
+}
+
+/* Ensure proper stacking on mobile */
+@media (max-width: 480px) {
+    .multi-select-dropdown,
+    .dropdown-options {
+        position: fixed;
+        left: 1rem;
+        right: 1rem;
+        max-width: calc(100vw - 2rem);
+        z-index: 10003 !important;
+    }
+}
+

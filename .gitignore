@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Generated JSON files
+json/db/*.json
+json/portal/*.json
+
+# Logs directory (contains JSON, HTML, and comparison files)
+logs/
+
+# Log files
+*.log
+debug.log
+server.log
+
+# Backup files
+*.backup
+clients-data-manual.json.backup
+
+# Test results
+test-results/
+playwright-report/
+
+# Screenshots
+screenshots/*.png
+
+# Excel reports
+*.xlsx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local

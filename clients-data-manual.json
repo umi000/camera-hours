@@ -1,0 +1,372 @@
+[
+  {
+    "companyid": "228",
+    "companyName": "Ahsan communication",
+    "userid": "superadmin@cellularcityinc.com",
+    "password": "XX3T6ZZM66",
+    "dbname": "cellularcity",
+    "landingurl": "https://cellularcity.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://cellularcity.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "229",
+    "companyName": "Ahsan communication1",
+    "userid": "SuperAdmin@wireless-zone.com",
+    "password": "KIYA6JDHAN",
+    "dbname": "HotspotCellInc",
+    "landingurl": "https://hotspotcellinc.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://hotspotcellinc.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "84",
+    "companyName": "All Things Wireless",
+    "userid": "SuperAdmin@allthingswireless.com",
+    "password": "?LGSFK3?EJ",
+    "dbname": "AllThingsWireless",
+    "landingurl": "https://AllThingsWireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://AllThingsWireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "213",
+    "companyName": "Arch Telecom",
+    "userid": "SuperAdmin@archtelecom.net",
+    "password": "aXGAYEM@P7",
+    "dbname": "ArchTelecom",
+    "landingurl": "https://archtelecom.rebiz.com/",
+    "liveserverip": "74.214.18.52",
+    "applandingurl": "https://archtelecom.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "213",
+    "companyName": "ArchTelecom",
+    "userid": "SuperAdmin@archtelecom.net",
+    "password": "aXGAYEM@P7",
+    "dbname": "ArchTelecom",
+    "landingurl": "https://archtelecom.rebiz.com/",
+    "liveserverip": "74.214.18.52",
+    "applandingurl": "https://archtelecom.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "95",
+    "companyName": "Bedford Cellular",
+    "userid": "SuperAdmin@bedfordcellular.com",
+    "password": "?bM7GA@5bE",
+    "dbname": "BedfordCellular",
+    "landingurl": "https://bedfordcellular.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://bedfordcellular.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "96",
+    "companyName": "BeMobile",
+    "userid": "SuperAdmin@bemobile.com",
+    "password": "TPHAKHQ2V6",
+    "dbname": "BeMobile",
+    "landingurl": "https://bemobile.rebiz.com/",
+    "liveserverip": "74.214.18.52",
+    "applandingurl": "https://bemobile.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "33",
+    "companyName": "Campbell Communication",
+    "userid": "Campbellsuperadmin@wireless-zone.com",
+    "password": "BBAGcDDOYI",
+    "dbname": "CampbellCommunication",
+    "landingurl": "https://CampbellComm.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://CampbellComm.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "69",
+    "companyName": "Central Office Products",
+    "userid": "superadmin@COP.com",
+    "password": "bFY2@SFR8W",
+    "dbname": "CentralOfficeProducts",
+    "landingurl": "https://cop.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://cop.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "66",
+    "companyName": "Complete Wireless",
+    "userid": "superadmin@CompleteWireless.com",
+    "password": "4RQCUCDd?b",
+    "dbname": "CompleteWireless",
+    "landingurl": "https://completewireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://completewireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "46",
+    "companyName": "Comserve",
+    "userid": "comservesuperadmin@comserve.com",
+    "password": "bUCSdC883B",
+    "dbname": "Comserve",
+    "landingurl": "https://Comserve.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://Comserve.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "103",
+    "companyName": "Corridor Ventures",
+    "userid": "SuperAdmin@corridorventures.com",
+    "password": "BJT7TBELZM",
+    "dbname": "CorridorVentures",
+    "landingurl": "https://corridor.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://corridor.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "127",
+    "companyName": "Digital Wireless",
+    "userid": "SuperAdmin@digitalwirelessinc.com",
+    "password": "UEHSMSR41I",
+    "dbname": "DigitalWireless",
+    "landingurl": "https://digitalwireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://digitalwireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "109",
+    "companyName": "Eastern Cellular",
+    "userid": "SuperAdmin@easterncellular.com",
+    "password": "7FCLWS4V99",
+    "dbname": "EasternCellular",
+    "landingurl": "https://eastcellular.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://eastcellular.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "59",
+    "companyName": "Express Store",
+    "userid": "superadmin@expressstore.com",
+    "password": "cbW9X?4GTL",
+    "dbname": "ExpressStore",
+    "landingurl": "https://ExpressStore.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://ExpressStore.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "119",
+    "companyName": "Hardwork Communications LLC",
+    "userid": "SuperAdmin@jncmgmt.com",
+    "password": "S49dC57LGH",
+    "dbname": "HardworkCommunications",
+    "landingurl": "https://HardworkCommunications.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://HardworkCommunications.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "122",
+    "companyName": "JH Cellular",
+    "userid": "SuperAdmin@jhcellular.com",
+    "password": "LWOWGPW@K5",
+    "dbname": "JHCellular",
+    "landingurl": "https://JHCellular.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://JHCellular.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "80",
+    "companyName": "KC Wireless",
+    "userid": "SuperAdmin@kcwireless.com",
+    "password": "GJYc98?8YU",
+    "dbname": "KCWireless",
+    "landingurl": "https://kcwireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://kcwireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "106",
+    "companyName": "MAS Corp",
+    "userid": "SuperAdmin@wzwireless.com",
+    "password": "2WBa347ZU8",
+    "dbname": "MASCorp",
+    "landingurl": "https://mascorp.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://mascorp.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "140",
+    "companyName": "More Wireless Inc",
+    "userid": "SuperAdmin@vzw4glte.com",
+    "password": "8XIUV7EJUC",
+    "dbname": "MoreWirelessInc",
+    "landingurl": "https://Morewireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://Morewireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "202",
+    "companyName": "Redstone Wireless",
+    "userid": "superadmin@app.russellcellular.com",
+    "password": "?T6QU2XCKU",
+    "dbname": "RedstoneWireless",
+    "landingurl": "https://redstonewireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://redstonewireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "88",
+    "companyName": "Reliance Wireless",
+    "userid": "SuperAdmin@reliancewireless.com",
+    "password": "25c8?WUOXW",
+    "dbname": "RelianceWireless",
+    "landingurl": "https://RelianceWireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://RelianceWireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "131",
+    "companyName": "RS SHunyia Inc",
+    "userid": "SuperAdmin@rsshunyia.com",
+    "password": "CbCHOH1aAE",
+    "dbname": "RSSHunyiaInc",
+    "landingurl": "https://rsshunyia.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://rsshunyia.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "195",
+    "companyName": "Rumis Market",
+    "userid": "SuperAdmin@rumismarket.com",
+    "password": "U69VB9@A2M",
+    "dbname": "RumisMarket",
+    "landingurl": "https://rumismarket.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://rumismarket.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "79",
+    "companyName": "Russell Cellular",
+    "userid": "SuperAdmin@russellcellular.com",
+    "password": "cOYDGIJIaL",
+    "dbname": "RussellCellular",
+    "landingurl": "https://russellcellular.rebiz.com/",
+    "liveserverip": "74.214.18.52",
+    "applandingurl": "https://russellcellular.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "36",
+    "companyName": "Schulz Technologies",
+    "userid": "Schulzsuperadmin@wireless-zone.com",
+    "password": "MHEC2WHTE9",
+    "dbname": "SchulzTechnologies",
+    "landingurl": "https://schulz.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://schulz.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "120",
+    "companyName": "Se Cellular",
+    "userid": "SuperAdmin@secellular.com",
+    "password": "2QR4Q8U97H",
+    "dbname": "SeCellular",
+    "landingurl": "https://secellular.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://secellular.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "129",
+    "companyName": "Smartlinks LLC",
+    "userid": "SuperAdmin@smartlinksing.com",
+    "password": "5VV57H?GVN",
+    "dbname": "SmartlinksLLC",
+    "landingurl": "https://smartlinks.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://smartlinks.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "74",
+    "companyName": "Smartmart",
+    "userid": "superadmin@smartmart.com",
+    "password": "SIGTJS2Y@Z",
+    "dbname": "Smartmart",
+    "landingurl": "https://smartmart.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://smartmart.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "44",
+    "companyName": "Smith Wireless",
+    "userid": "superadmin@nextgenwireless.net",
+    "password": "HZcKVF5a3X",
+    "dbname": "SmithWireless",
+    "landingurl": "https://nextgenwireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://nextgenwireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "112",
+    "companyName": "Springville Wireless",
+    "userid": "SuperAdmin@bogart-wireless.net",
+    "password": "Y67TLF3W?N",
+    "dbname": "SpringvilleWireless",
+    "landingurl": "https://springvillewireless.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://springvillewireless.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "102",
+    "companyName": "TDP Wireless Inc",
+    "userid": "SuperAdmin@tpdwirelessinc.com",
+    "password": "5BDLILL3AL",
+    "dbname": "TDPWirelessInc",
+    "landingurl": "https://tdp.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://tdp.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "207",
+    "companyName": "The CBP Group LLC",
+    "userid": "superadmin@cbpmobility.com",
+    "password": "PJTaQU13Z3",
+    "dbname": "TheCBGroupLLC",
+    "landingurl": "https://cbpgroup.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://cbpgroup.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "93",
+    "companyName": "The Cellular Connection",
+    "userid": "SuperAdmin@thecellularconnection.com",
+    "password": "J6PUNRY38a",
+    "dbname": "TheCellularConnection",
+    "landingurl": "https://tccrocks.rebiz.com/",
+    "liveserverip": "74.214.18.52",
+    "applandingurl": "https://tccrocks.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "217",
+    "companyName": "Wicom Inc",
+    "userid": "superadmin@wireless-zone.com",
+    "password": "3VNM2RHNNZ",
+    "dbname": "WiComInc",
+    "landingurl": "https://wicominc.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://wicominc.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "77",
+    "companyName": "Wireless Nation",
+    "userid": "SuperAdmin@wirelessnation.com",
+    "password": "NFD1O6X6Ua",
+    "dbname": "WirelessNation",
+    "landingurl": "https://wirelessnation.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://wirelessnation.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "62",
+    "companyName": "Wireless SolutionZ",
+    "userid": "superadmin@wireless-zone.com",
+    "password": "2Z57HZ8P58",
+    "dbname": "WirelessSolutionZ",
+    "landingurl": "https://wirelessolutionz.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://wirelessolutionz.rebiz.com/EmployeeCameraHours"
+  }
+]

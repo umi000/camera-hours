@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Camera Hours automation audit Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="performance-fix.css">
+</head>
+<body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle">
+        <span class="icon">🌙</span>
+        <span class="text">Dark Mode</span>
+    </button>
+
+    <div class="container">
+        <header class="header">
+            <h1>Camera Hours automation audit Dashboard</h1>
+            <p>Generate camera hour reports for different organizational levels</p>
+            <div class="header-actions">
+                <button class="logs-button" id="viewLogsBtn">
+                    <span class="icon">📋</span>
+                    <span class="text">View Logs</span>
+                </button>
+                <div class="last-updated" id="lastUpdated">
+                    <span class="last-updated-label">Last updated on:</span>
+                    <span class="last-updated-time" id="lastUpdatedTime">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="dashboard-form">
+                <div class="form-section">
+                    <div class="section-header">
+                        <h2>📋 Test Configuration</h2>
+                        <p class="section-description">Configure your test parameters below</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="clientSelect">
+                            <span class="label-icon">👥</span>
+                            Select Client(s)
+                            <span class="required-indicator">*</span>
+                        </label>
+                        <div class="custom-multi-select">
+                            <div class="multi-select-trigger" id="clientSelectTrigger">
+                                <span class="placeholder-text">Click to select clients...</span>
+                                <span class="selected-count" id="selectedCount" style="display: none;"></span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="clientSelectDropdown">
+                                <div class="search-box">
+                                    <input type="text" id="clientSearch" placeholder="🔍 Search clients..." class="search-input">
+                                </div>
+                                <div class="options-container" id="clientOptions">
+                                    <!-- Options will be populated by JavaScript -->
+                                </div>
+                                <div class="multi-select-actions">
+                                    <button type="button" class="select-all-btn" id="selectAllBtn">✓ Select All</button>
+                                    <button type="button" class="clear-all-btn" id="clearAllBtn">✕ Clear All</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="selectedClientsDisplay" class="selected-clients-display">
+                            <div class="selected-clients-title">Selected Clients:</div>
+                            <div id="selectedClientsList" class="selected-clients-tags"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group half-width">
+                            <label for="reportTypeSelect">
+                                <span class="label-icon">📊</span>
+                                Report Type
+                            </label>
+                            <div class="custom-dropdown">
+                                <div class="dropdown-trigger" id="reportTypeTrigger">
+                                    <span class="dropdown-text">-- Select Report Type --</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="dropdown-options" id="reportTypeOptions">
+                                    <div class="dropdown-option" data-value="summary">📈 Summary</div>
+                                    <div class="dropdown-option" data-value="detail">📋 Detail</div>
+                                </div>
+                                <input type="hidden" id="reportTypeSelect" name="reportType">
+                            </div>
+                        </div>
+
+                        <div class="form-group half-width">
+                            <label for="reportNameSelect">
+                                <span class="label-icon">📝</span>
+                                Report Name
+                            </label>
+                            <div class="custom-dropdown">
+                                <div class="dropdown-trigger" id="reportNameTrigger">
+                                    <span class="dropdown-text">-- Select Report Name --</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="dropdown-options" id="reportNameOptions">
+                                    <div class="dropdown-option" data-value="employee-camera-hours">👤 Employee Camera Hours</div>
+                                    <div class="dropdown-option" data-value="manager-camera-hours">👔 Manager Camera Hours</div>
+                                    <div class="dropdown-option" data-value="district-camera-hours">🏢 District Camera Hours</div>
+                                    <div class="dropdown-option" data-value="regional-camera-hours">🌍 Regional Camera Hours</div>
+                                </div>
+                                <input type="hidden" id="reportNameSelect" name="reportName">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group half-width">
+                            <label for="startDate">
+                                <span class="label-icon">📅</span>
+                                Start Date
+                                <span class="required-indicator">*</span>
+                            </label>
+                            <div class="custom-date-input">
+                                <input type="text" id="startDate" class="date-input" readonly placeholder="Select start date">
+                                <button type="button" class="calendar-trigger" data-target="startDate" aria-label="Open calendar">📅</button>
+                                <div class="custom-calendar" id="calendar-startDate"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-group half-width">
+                            <label for="endDate">
+                                <span class="label-icon">📅</span>
+                                End Date
+                                <span class="required-indicator">*</span>
+                            </label>
+                            <div class="custom-date-input">
+                                <input type="text" id="endDate" class="date-input" readonly placeholder="Select end date">
+                                <button type="button" class="calendar-trigger" data-target="endDate" aria-label="Open calendar">📅</button>
+                                <div class="custom-calendar" id="calendar-endDate"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-help-text">
+                        <span class="help-icon">ℹ️</span>
+                        <span>Date range cannot exceed 31 days. Default dates are set to 31 days ago to 2 days ago.</span>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button id="generateReportBtn" class="cta-button" disabled>
+                        <span class="button-icon">🚀</span>
+                        <span class="button-text">Generate Report</span>
+                        <span class="button-loader" style="display: none;"></span>
+                    </button>
+                    <button id="clearFormBtn" class="secondary-button">
+                        <span class="button-icon">🔄</span>
+                        <span class="button-text">Clear Form</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Column 2: Console Output Section -->
+            <div class="console-section" id="consoleSection" style="display: none;">
+                <div class="console-header">
+                    <div class="console-title">
+                        <span class="console-icon">💻</span>
+                        <h3>Real-time Console Output</h3>
+                    </div>
+                    <div class="console-actions">
+                        <button class="console-action-btn" id="clearConsoleBtn" title="Clear console">
+                            <span>🗑️</span> Clear
+                        </button>
+                        <button class="console-action-btn" id="scrollToBottomBtn" title="Scroll to bottom">
+                            <span>⬇️</span> Bottom
+                        </button>
+                    </div>
+                </div>
+                <div class="console-content">
+                    <div class="console-output-box" id="playwrightOutput">
+                        <div class="console-welcome">
+                            <p>📋 Console output will appear here when tests are running...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="console-footer">
+                    <div class="console-status" id="consoleStatus">
+                        <span class="status-indicator"></span>
+                        <span class="status-text">Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 3: Client Status & Progress Section -->
+            <div class="right-column">
+                <!-- Client Status Tracker -->
+                <div class="client-status-tracker" id="clientStatusTracker" style="display: none;">
+                    <div class="status-tracker-card">
+                        <div class="status-tracker-header">
+                            <h3>📋 Client Status</h3>
+                            <span class="status-summary" id="statusSummary">0/0</span>
+                        </div>
+                        <div class="client-status-list" id="clientStatusList">
+                            <!-- Client status items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="progress-section" id="progressSection" style="display: none;">
+                    <div class="progress-card">
+                        <div class="progress-header">
+                            <h3>📊 Test Progress</h3>
+                            <span class="progress-percentage" id="progressPercentage">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <p class="progress-text" id="progressText">Initializing...</p>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <div class="results-card">
+                        <div class="results-header">
+                            <h3>📈 Test Results</h3>
+                            <div class="results-badge" id="resultsBadge"></div>
+                        </div>
+                        <div class="results-content" id="resultsContent"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Employee Camera Hours automation audit Dashboard. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Logs Modal -->
+    <div class="logs-modal" id="logsModal" style="display: none;">
+        <div class="logs-modal-content">
+            <div class="logs-modal-header">
+                <h2>📋 Comparison Logs</h2>
+                <button class="logs-modal-close" id="closeLogsModal">&times;</button>
+            </div>
+            <div class="logs-modal-body">
+                <div class="logs-loading" id="logsLoading">Loading logs...</div>
+                <div class="logs-list" id="logsList" style="display: none;">
+                    <!-- Logs will be populated here -->
+                </div>
+                <div class="logs-empty" id="logsEmpty" style="display: none;">
+                    <p>No logs found. Run a comparison to generate logs.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Embed the real company data directly in the HTML
+        window.companiesData = [];
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
