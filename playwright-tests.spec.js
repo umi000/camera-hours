@@ -1,5 +1,6 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 const { executeAndSaveECHQuery } = require('./execute-ech-query-helper.js');
+const { compareDBAndPortal, resolveDbJsonPath, listPortalCandidates } = require('./compare-db-portal.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -15,17 +16,9 @@ function extractTableData() {
         return clone.textContent.trim();
     }
     
-    // Try to find the specific table - prioritize by ID, then by row count
-    let table = null;
-    
-    // First, try to find table by specific ID (most reliable)
-    try {
-        table = document.querySelector('#ctl00_mainPane_ReportViewer1_fixedTable');
-        if (table) {
-            console.log('✅ Found table using ID: #ctl00_mainPane_ReportViewer1_fixedTable');
-        }
-    } catch (e) {
-        console.log('⚠️ Could not find table by ID');
+    let table = document.querySelector('#ctl00_mainPane_ReportViewer1_fixedTable');
+    if (table) {
+        console.log('✅ Found table using ID: #ctl00_mainPane_ReportViewer1_fixedTable');
     }
     
     // If not found by ID, try XPath: (//table[@cellpadding='0'])[3]
@@ -190,17 +183,36 @@ function extractTableData() {
     
     // Debug: Log all header texts
     const headerTexts = [];
-    headerCells.forEach((cell, idx) => {
+    const isMonitoredPercentHeader = (text) => {
+        if (!text.includes('monitor')) return false;
+        if (text.includes('day')) return false;
+        return text.includes('percent') || text.includes('%');
+    };
+    const mapIdentity = (cell, idx) => {
         const text = getCellText(cell).toLowerCase().trim();
         headerTexts.push(`[${idx}]: "${text}"`);
-        
-        // Only map if not already mapped (first match wins)
+        if (!text) return;
         if (text.includes('rm') && columnMap.RM === undefined) columnMap.RM = idx;
         else if (text.includes('dm') && columnMap.DM === undefined) columnMap.DM = idx;
         else if ((text.includes('store name') || text.includes('storename') || (text.includes('store') && text.length < 20)) && columnMap.StoreName === undefined) columnMap.StoreName = idx;
         else if ((text.includes('user name') || text.includes('username') || text.includes('employee')) && columnMap.UserName === undefined) columnMap.UserName = idx;
-        else if (text.includes('camera') && text.includes('hours') && columnMap.CameraNetHours === undefined) columnMap.CameraNetHours = idx;
-        else if (text.includes('monitored') && columnMap.MonitoredPercent === undefined) columnMap.MonitoredPercent = idx;
+    };
+    headerCells.forEach((cell, idx) => mapIdentity(cell, idx));
+    headerCells.forEach((cell, idx) => {
+        const text = getCellText(cell).toLowerCase().trim();
+        if (isMonitoredPercentHeader(text) && columnMap.MonitoredPercent === undefined) columnMap.MonitoredPercent = idx;
+    });
+    headerCells.forEach((cell, idx) => {
+        const text = getCellText(cell).toLowerCase().trim();
+        if (text.includes('camera') && text.includes('hours') && columnMap.CameraNetHours === undefined) columnMap.CameraNetHours = idx;
+    });
+    headerCells.forEach((cell, idx) => {
+        const text = getCellText(cell).toLowerCase().trim();
+        if (text.includes('camera') && !text.includes('hours') && columnMap.CameraNetHours === undefined) columnMap.CameraNetHours = idx;
+    });
+    headerCells.forEach((cell, idx) => {
+        const text = getCellText(cell).toLowerCase().trim();
+        if ((text.includes('hours') || text === 'hrs') && !text.includes('camera') && columnMap.NetHours === undefined) columnMap.NetHours = idx;
     });
     
     console.log('📋 Header columns found:', headerTexts.slice(0, 20).join(', '), headerTexts.length > 20 ? `... (${headerTexts.length} total)` : '');
@@ -211,13 +223,18 @@ function extractTableData() {
         console.log('⚠️ Warning: Could not find UserName or StoreName column. Trying alternative detection...');
         // Try to find by position if header text matching failed
         if (headerCells.length >= 6) {
-            // Common pattern: RM, DM, Store, User, Hours, Monitored
             columnMap.RM = columnMap.RM !== undefined ? columnMap.RM : 0;
             columnMap.DM = columnMap.DM !== undefined ? columnMap.DM : 1;
             columnMap.StoreName = columnMap.StoreName !== undefined ? columnMap.StoreName : 2;
             columnMap.UserName = columnMap.UserName !== undefined ? columnMap.UserName : 3;
-            columnMap.CameraNetHours = columnMap.CameraNetHours !== undefined ? columnMap.CameraNetHours : 4;
-            columnMap.MonitoredPercent = columnMap.MonitoredPercent !== undefined ? columnMap.MonitoredPercent : 5;
+            if (headerCells.length >= 7) {
+                columnMap.CameraNetHours = columnMap.CameraNetHours !== undefined ? columnMap.CameraNetHours : 4;
+                columnMap.NetHours = columnMap.NetHours !== undefined ? columnMap.NetHours : 5;
+                columnMap.MonitoredPercent = columnMap.MonitoredPercent !== undefined ? columnMap.MonitoredPercent : 6;
+            } else {
+                columnMap.CameraNetHours = columnMap.CameraNetHours !== undefined ? columnMap.CameraNetHours : 4;
+                columnMap.MonitoredPercent = columnMap.MonitoredPercent !== undefined ? columnMap.MonitoredPercent : 5;
+            }
             console.log('🗺️ Using fallback column mapping:', JSON.stringify(columnMap));
         }
     }
@@ -239,6 +256,7 @@ function extractTableData() {
         columnMap.StoreName || 0,
         columnMap.UserName || 0,
         columnMap.CameraNetHours || 0,
+        columnMap.NetHours || 0,
         columnMap.MonitoredPercent || 0
     );
     
@@ -257,8 +275,22 @@ function extractTableData() {
             else if (text.includes('dm') && newColumnMap.DM === undefined) newColumnMap.DM = idx;
             else if ((text.includes('store name') || text.includes('storename') || text.includes('store')) && newColumnMap.StoreName === undefined) newColumnMap.StoreName = idx;
             else if ((text.includes('user name') || text.includes('username') || text.includes('employee')) && newColumnMap.UserName === undefined) newColumnMap.UserName = idx;
-            else if (text.includes('camera') && text.includes('hours') && newColumnMap.CameraNetHours === undefined) newColumnMap.CameraNetHours = idx;
-            else if (text.includes('monitored') && newColumnMap.MonitoredPercent === undefined) newColumnMap.MonitoredPercent = idx;
+        }
+        for (let idx = 0; idx < Math.min(30, headerCellsRescan.length); idx++) {
+            const text = getCellText(headerCellsRescan[idx]).toLowerCase().trim();
+            if (isMonitoredPercentHeader(text) && newColumnMap.MonitoredPercent === undefined) newColumnMap.MonitoredPercent = idx;
+        }
+        for (let idx = 0; idx < Math.min(30, headerCellsRescan.length); idx++) {
+            const text = getCellText(headerCellsRescan[idx]).toLowerCase().trim();
+            if (text.includes('camera') && text.includes('hours') && newColumnMap.CameraNetHours === undefined) newColumnMap.CameraNetHours = idx;
+        }
+        for (let idx = 0; idx < Math.min(30, headerCellsRescan.length); idx++) {
+            const text = getCellText(headerCellsRescan[idx]).toLowerCase().trim();
+            if (text.includes('camera') && !text.includes('hours') && newColumnMap.CameraNetHours === undefined) newColumnMap.CameraNetHours = idx;
+        }
+        for (let idx = 0; idx < Math.min(30, headerCellsRescan.length); idx++) {
+            const text = getCellText(headerCellsRescan[idx]).toLowerCase().trim();
+            if ((text.includes('hours') || text === 'hrs') && !text.includes('camera') && newColumnMap.NetHours === undefined) newColumnMap.NetHours = idx;
         }
         
         // Only update if we found better mappings
@@ -342,6 +374,7 @@ function extractTableData() {
         let storeName = '';
         let userName = '';
         let cameraHours = '';
+        let netHours = '';
         let monitored = '';
         
         // Helper to safely get cell value from virtual array
@@ -385,6 +418,13 @@ function extractTableData() {
             cameraHours = getCellValue(columnMap.CameraNetHours);
         }
         
+        if (columnMap.NetHours !== undefined) {
+            netHours = getCellValue(columnMap.NetHours);
+        }
+        if (!netHours && cameraHours) {
+            netHours = cameraHours;
+        }
+        
         if (columnMap.MonitoredPercent !== undefined) {
             monitored = getCellValue(columnMap.MonitoredPercent);
         }
@@ -394,6 +434,7 @@ function extractTableData() {
             DM: dm,
             StoreName: storeName,
             UserName: userName,
+            NetHours: netHours,
             CameraNetHours: cameraHours,
             MonitoredPercent: monitored
         };
@@ -421,7 +462,7 @@ function extractTableData() {
     }
     
     const result = {
-        headers: ['RM', 'DM', 'StoreName', 'UserName', 'CameraNetHours', 'MonitoredPercent'],
+        headers: ['RM', 'DM', 'StoreName', 'UserName', 'NetHours', 'CameraNetHours', 'MonitoredPercent'],
         rows: dataRows,
         rowCount: dataRows.length,
         debug: {
@@ -442,6 +483,34 @@ function extractTableData() {
         console.error('Stack:', error.stack);
         return null;
     }
+}
+
+/** First report table that has header + at least one non-empty data row (browser context). */
+async function evaluateReportTableReady(page) {
+    return page.evaluate(() => {
+        const tables = document.querySelectorAll('table');
+        for (const table of tables) {
+            const rows = table.querySelectorAll('tbody tr, tr');
+            if (rows.length < 2) continue;
+            let dataRowCount = 0;
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].querySelectorAll('td, th');
+                let hasData = false;
+                for (const cell of cells) {
+                    const text = cell.textContent.trim();
+                    if (text && text.length > 0 && text !== '-' && text !== 'N/A' && text !== '&nbsp;') {
+                        hasData = true;
+                        break;
+                    }
+                }
+                if (hasData) dataRowCount++;
+            }
+            if (dataRowCount > 0) {
+                return { ready: true, totalRows: rows.length, dataRows: dataRowCount };
+            }
+        }
+        return { ready: false, totalRows: 0, dataRows: 0 };
+    });
 }
 
 // Test configuration for Employee Camera Hours applications
@@ -526,27 +595,58 @@ test.describe('Employee Camera Hours Applications', () => {
                     console.log(`⚠️ ${client.name}: Error closing browser - ${closeError.message}`);
                 }
                 
-                // Execute ECH query after browser closes
+                // Execute ECH query after browser closes (always save DB JSON for Compare — PS/CLI runs often omit env dates)
                 console.log(`\n📊 ${client.name}: Starting ECH query execution...`);
+                let echSucceeded = false;
                 try {
-                    // Get dates from environment variable (passed from UI)
-                    const startDate = process.env.START_DATE || '';
-                    const endDate = process.env.END_DATE || '';
-                    
-                    if (startDate && endDate) {
-                        console.log(`📅 ${client.name}: Using dates from UI - Start: ${startDate}, End: ${endDate}`);
-                        const jsonFilePath = await executeAndSaveECHQuery(client, startDate, endDate);
-                        console.log(`✅ ${client.name}: ECH query completed and saved to ${jsonFilePath}`);
-                        console.log(`✅ ${client.name}: DB data extracted successfully`);
+                    const envStart = (process.env.START_DATE || '').trim();
+                    const envEnd = (process.env.END_DATE || '').trim();
+                    const startDate = envStart || '12/01/2025';
+                    const endDate = envEnd || '12/31/2025';
+                    if (!envStart || !envEnd) {
+                        console.warn(`⚠️ ${client.name}: START_DATE/END_DATE not set (e.g. running Playwright from PowerShell without env). Using ECH defaults: ${startDate} – ${endDate}`);
                     } else {
-                        console.log(`⚠️ ${client.name}: No dates provided from UI, skipping ECH query`);
-                        console.log(`✅ ${client.name}: DB extraction skipped (no dates provided)`);
+                        console.log(`📅 ${client.name}: Using dates from UI/env - Start: ${startDate}, End: ${endDate}`);
                     }
+                    const jsonFilePath = await executeAndSaveECHQuery(client, startDate, endDate);
+                    console.log(`✅ ${client.name}: ECH query completed and saved to ${jsonFilePath}`);
+                    console.log(`✅ ${client.name}: DB data extracted successfully`);
+                    echSucceeded = true;
                 } catch (echError) {
                     console.error(`❌ ${client.name}: ECH query failed - ${echError.message}`);
-                    // Mark DB extraction as complete even if it failed (so comparison can proceed)
                     console.log(`✅ ${client.name}: DB extraction attempt completed (failed, but marked as done)`);
-                    // Continue even if ECH query fails
+                }
+
+                if (echSucceeded) {
+                    const dbDir = path.join(__dirname, 'logs', 'json', 'db');
+                    const portalDir = path.join(__dirname, 'logs', 'json', 'portal');
+                    const dbPath = resolveDbJsonPath(dbDir, client.name);
+                    if (dbPath && fs.existsSync(portalDir)) {
+                        try {
+                            const portalFiles = listPortalCandidates(portalDir, client.name, client.id);
+                            if (portalFiles.length > 0) {
+                                const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+                                const result = compareDBAndPortal(dbData, portalFiles[0].data, client.id, client.name);
+                                expect(result.success, result.error || 'compareDBAndPortal failed').toBeTruthy();
+                                expect(
+                                    result.stats.differences,
+                                    `DB vs Portal mismatch for ${client.name}: ${JSON.stringify(result.stats)}. Excel: ${result.filePath}`
+                                ).toBe(0);
+                                console.log(
+                                    `✅ ${client.name}: DB/Portal comparison passed (${result.stats.totalDBRecords} DB / ${result.stats.totalPortalRecords} portal rows)`
+                                );
+                            } else {
+                                console.log(
+                                    `⚠️ ${client.name}: No portal JSON under ${portalDir} for this client — skipping DB/Portal assertion (extract report first)`
+                                );
+                            }
+                        } catch (compareErr) {
+                            console.error(`❌ ${client.name}: DB/Portal comparison error - ${compareErr.message}`);
+                            throw compareErr;
+                        }
+                    } else if (!dbPath) {
+                        console.log(`⚠️ ${client.name}: DB JSON not found after ECH — skipping DB/Portal assertion`);
+                    }
                 }
                 
             } catch (error) {
@@ -587,7 +687,6 @@ test.describe('Employee Camera Hours Applications', () => {
             console.log(`✅ ${client.name}: Page loaded - "${title}"`);
             
             // Test 3: Look for login elements and attempt login
-            const loginForm = await page.$('form');
             const usernameField = await page.$('input[type="text"], input[type="email"], input[name*="user"], input[name*="login"], input[name*="username"]');
             const passwordField = await page.$('input[type="password"]');
             const submitButton = await page.$('button[type="submit"], input[type="submit"]');
@@ -1268,40 +1367,9 @@ test.describe('Employee Camera Hours Applications', () => {
                                     while (!tableReady && waitAttempt < maxWaitAttempts) {
                                         try {
                                             // Check if table exists and has data rows
-                                            const tableStatus = await page.evaluate(() => {
-                                                const tables = document.querySelectorAll('table');
-                                                for (const table of tables) {
-                                                    const rows = table.querySelectorAll('tbody tr, tr');
-                                                    if (rows.length >= 2) {
-                                                        // Check if we have actual data rows (not just headers)
-                                                        let dataRowCount = 0;
-                                                        for (let i = 1; i < rows.length; i++) {
-                                                            const cells = rows[i].querySelectorAll('td, th');
-                                                            let hasData = false;
-                                                            for (const cell of cells) {
-                                                                const text = cell.textContent.trim();
-                                                                if (text && text.length > 0 && text !== '-' && text !== 'N/A' && text !== '&nbsp;') {
-                                                                    hasData = true;
-                                                                    break;
-                                                                }
-                                                            }
-                                                            if (hasData) {
-                                                                dataRowCount++;
-                                                            }
-                                                        }
-                                                        if (dataRowCount > 0) {
-                                                            return {
-                                                                found: true,
-                                                                totalRows: rows.length,
-                                                                dataRows: dataRowCount
-                                                            };
-                                                        }
-                                                    }
-                                                }
-                                                return { found: false, totalRows: 0, dataRows: 0 };
-                                            });
+                                            const tableStatus = await evaluateReportTableReady(page);
                                             
-                                            if (tableStatus.found && tableStatus.dataRows > 0) {
+                                            if (tableStatus.ready && tableStatus.dataRows > 0) {
                                                 tableReady = true;
                                                 console.log(`✅ ${client.name}: Report table is ready! (${tableStatus.totalRows} total rows, ${tableStatus.dataRows} data rows)`);
                                             } else {
@@ -1334,32 +1402,7 @@ test.describe('Employee Camera Hours Applications', () => {
                                     try {
                                         // Final verification that table exists and has data before extraction
                                         console.log(`⏳ ${client.name}: Verifying table is ready for extraction...`);
-                                        const tableVerification = await page.evaluate(() => {
-                                            const tables = document.querySelectorAll('table');
-                                            for (const table of tables) {
-                                                const rows = table.querySelectorAll('tbody tr, tr');
-                                                if (rows.length >= 2) {
-                                                    // Count data rows
-                                                    let dataRowCount = 0;
-                                                    for (let i = 1; i < rows.length; i++) {
-                                                        const cells = rows[i].querySelectorAll('td, th');
-                                                        let hasData = false;
-                                                        for (const cell of cells) {
-                                                            const text = cell.textContent.trim();
-                                                            if (text && text.length > 0 && text !== '-' && text !== 'N/A' && text !== '&nbsp;') {
-                                                                hasData = true;
-                                                                break;
-                                                            }
-                                                        }
-                                                        if (hasData) dataRowCount++;
-                                                    }
-                                                    if (dataRowCount > 0) {
-                                                        return { ready: true, totalRows: rows.length, dataRows: dataRowCount };
-                                                    }
-                                                }
-                                            }
-                                            return { ready: false, totalRows: 0, dataRows: 0 };
-                                        });
+                                        const tableVerification = await evaluateReportTableReady(page);
                                         
                                         if (!tableVerification.ready || tableVerification.dataRows === 0) {
                                             console.log(`⚠️ ${client.name}: Table not ready for extraction (${tableVerification.totalRows} rows, ${tableVerification.dataRows} data rows)`);
@@ -1367,31 +1410,7 @@ test.describe('Employee Camera Hours Applications', () => {
                                             await page.waitForTimeout(2000); // Reduced from 5 to 2 seconds
                                             
                                             // Retry verification
-                                            const retryVerification = await page.evaluate(() => {
-                                                const tables = document.querySelectorAll('table');
-                                                for (const table of tables) {
-                                                    const rows = table.querySelectorAll('tbody tr, tr');
-                                                    if (rows.length >= 2) {
-                                                        let dataRowCount = 0;
-                                                        for (let i = 1; i < rows.length; i++) {
-                                                            const cells = rows[i].querySelectorAll('td, th');
-                                                            let hasData = false;
-                                                            for (const cell of cells) {
-                                                                const text = cell.textContent.trim();
-                                                                if (text && text.length > 0 && text !== '-' && text !== 'N/A' && text !== '&nbsp;') {
-                                                                    hasData = true;
-                                                                    break;
-                                                                }
-                                                            }
-                                                            if (hasData) dataRowCount++;
-                                                        }
-                                                        if (dataRowCount > 0) {
-                                                            return { ready: true, totalRows: rows.length, dataRows: dataRowCount };
-                                                        }
-                                                    }
-                                                }
-                                                return { ready: false, totalRows: 0, dataRows: 0 };
-                                            });
+                                            const retryVerification = await evaluateReportTableReady(page);
                                             
                                             if (!retryVerification.ready) {
                                                 console.log(`⚠️ ${client.name}: Table still not ready after retry, but continuing with extraction...`);
@@ -1647,29 +1666,38 @@ test.describe('Employee Camera Hours Applications', () => {
                                                     const headerCells = rows[headerRowIndex].querySelectorAll('th, td');
                                                     const headers = Array.from(headerCells).map(c => c.textContent.trim());
                                                     
-                                                    // Find column indices
-                                                    const getColumnIndex = (searchTerms) => {
-                                                        for (let i = 0; i < headers.length; i++) {
-                                                            const header = headers[i].toLowerCase();
-                                                            if (searchTerms.some(term => header.includes(term))) {
-                                                                return i;
-                                                            }
+                                                    const headersLower = headers.map(h => h.toLowerCase());
+                                                    const isMonPct = (t) => t.includes('monitor') && !t.includes('day') && (t.includes('percent') || t.includes('%'));
+                                                    const findIdx = (pred) => {
+                                                        for (let i = 0; i < headersLower.length; i++) {
+                                                            if (pred(headersLower[i])) return i;
                                                         }
                                                         return -1;
                                                     };
                                                     
-                                                    const rmIdx = getColumnIndex(['rm']);
-                                                    const dmIdx = getColumnIndex(['dm']);
-                                                    const storeIdx = getColumnIndex(['store']);
-                                                    const userIdx = getColumnIndex(['user', 'username']);
-                                                    const cameraIdx = getColumnIndex(['camera', 'hours']);
-                                                    const monitorIdx = getColumnIndex(['monitor', 'percent']);
+                                                    const rmIdx = findIdx((t) => t.includes('rm'));
+                                                    const dmIdx = findIdx((t) => t.includes('dm'));
+                                                    const storeIdx = findIdx((t) => t.includes('store'));
+                                                    const userIdx = findIdx((t) => t.includes('user') || t.includes('username'));
+                                                    const monitorIdx = findIdx(isMonPct);
+                                                    const camCombinedIdx = findIdx((t) => t.includes('camera') && t.includes('hours'));
+                                                    const camOnlyIdx = findIdx((t) => t.includes('camera') && !t.includes('hours'));
+                                                    const hoursOnlyIdx = findIdx((t) => (t.includes('hours') && !t.includes('camera')) || t === 'hrs');
+                                                    
+                                                    let cameraNetIdx = camCombinedIdx >= 0 ? camCombinedIdx : camOnlyIdx;
+                                                    let netHoursIdx = hoursOnlyIdx;
                                                     
                                                     if (userIdx === -1) {
                                                         return null;
                                                     }
                                                     
-                                                    // Extract data rows
+                                                    if (cameraNetIdx < 0 && headers.length >= 7) cameraNetIdx = 4;
+                                                    if (netHoursIdx < 0 && headers.length >= 7) netHoursIdx = 5;
+                                                    let monitorColIdx = monitorIdx;
+                                                    if (monitorColIdx < 0 && headers.length >= 7) monitorColIdx = 6;
+                                                    else if (monitorColIdx < 0 && headers.length >= 6) monitorColIdx = 5;
+                                                    if (cameraNetIdx < 0 && headers.length >= 6 && headers.length < 7) cameraNetIdx = 4;
+                                                    
                                                     const dataRows = [];
                                                     let lastRM = '', lastDM = '', lastStore = '';
                                                     
@@ -1683,8 +1711,10 @@ test.describe('Employee Camera Hours Applications', () => {
                                                         let dm = dmIdx >= 0 ? getCell(dmIdx) : lastDM;
                                                         let store = storeIdx >= 0 ? getCell(storeIdx) : lastStore;
                                                         let user = getCell(userIdx);
-                                                        let camera = cameraIdx >= 0 ? getCell(cameraIdx) : '';
-                                                        let monitor = monitorIdx >= 0 ? getCell(monitorIdx) : '';
+                                                        let camera = cameraNetIdx >= 0 ? getCell(cameraNetIdx) : '';
+                                                        let netH = netHoursIdx >= 0 ? getCell(netHoursIdx) : '';
+                                                        if (!netH && camera) netH = camera;
+                                                        let monitor = monitorColIdx >= 0 ? getCell(monitorColIdx) : '';
                                                         
                                                         if (!user || user.toLowerCase().includes('total')) continue;
                                                         
@@ -1697,13 +1727,14 @@ test.describe('Employee Camera Hours Applications', () => {
                                                             DM: dm,
                                                             StoreName: store,
                                                             UserName: user,
+                                                            NetHours: netH,
                                                             CameraNetHours: camera,
                                                             MonitoredPercent: monitor
                                                         });
                                                     }
                                                     
                                                     return {
-                                                        headers: ['RM', 'DM', 'StoreName', 'UserName', 'CameraNetHours', 'MonitoredPercent'],
+                                                        headers: ['RM', 'DM', 'StoreName', 'UserName', 'NetHours', 'CameraNetHours', 'MonitoredPercent'],
                                                         rows: dataRows,
                                                         rowCount: dataRows.length
                                                     };
@@ -1835,7 +1866,7 @@ test.describe('Employee Camera Hours Applications', () => {
                                             };
                                             
                                             // Use chunked transfer to avoid payload size issues
-                                            const chunkSize = 50;
+                                            const chunkSize = 100;
                                             
                                             try {
                                                 console.log(`📦 ${client.name}: Using chunked transfer (${reportData.rows.length} rows, ${Math.ceil(reportData.rows.length / chunkSize)} chunks)...`);

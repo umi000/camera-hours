@@ -10,16 +10,6 @@
     "applandingurl": "https://cellularcity.rebiz.com/EmployeeCameraHours"
   },
   {
-    "companyid": "229",
-    "companyName": "Ahsan communication1",
-    "userid": "SuperAdmin@wireless-zone.com",
-    "password": "KIYA6JDHAN",
-    "dbname": "HotspotCellInc",
-    "landingurl": "https://hotspotcellinc.rebiz.com/",
-    "liveserverip": "74.214.18.48",
-    "applandingurl": "https://hotspotcellinc.rebiz.com/EmployeeCameraHours"
-  },
-  {
     "companyid": "84",
     "companyName": "All Things Wireless",
     "userid": "SuperAdmin@allthingswireless.com",
@@ -32,16 +22,6 @@
   {
     "companyid": "213",
     "companyName": "Arch Telecom",
-    "userid": "SuperAdmin@archtelecom.net",
-    "password": "aXGAYEM@P7",
-    "dbname": "ArchTelecom",
-    "landingurl": "https://archtelecom.rebiz.com/",
-    "liveserverip": "74.214.18.52",
-    "applandingurl": "https://archtelecom.rebiz.com/EmployeeCameraHours"
-  },
-  {
-    "companyid": "213",
-    "companyName": "ArchTelecom",
     "userid": "SuperAdmin@archtelecom.net",
     "password": "aXGAYEM@P7",
     "dbname": "ArchTelecom",
@@ -158,6 +138,16 @@
     "landingurl": "https://HardworkCommunications.rebiz.com/",
     "liveserverip": "74.214.18.48",
     "applandingurl": "https://HardworkCommunications.rebiz.com/EmployeeCameraHours"
+  },
+  {
+    "companyid": "229",
+    "companyName": "Hotspot Cell Inc",
+    "userid": "SuperAdmin@wireless-zone.com",
+    "password": "KIYA6JDHAN",
+    "dbname": "HotspotCellInc",
+    "landingurl": "https://hotspotcellinc.rebiz.com/",
+    "liveserverip": "74.214.18.48",
+    "applandingurl": "https://hotspotcellinc.rebiz.com/EmployeeCameraHours"
   },
   {
     "companyid": "122",

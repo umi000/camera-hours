@@ -16,17 +16,9 @@ async function fetchClientData() {
   let pool;
   
   try {
-    console.log('🔄 Fetching client data from database...');
-    
-    // Connect to master database (required for linked server queries)
     pool = await createConnectionPool('master');
-    console.log('✅ Connected to database');
-    
-    // Execute the SQL query
-    console.log('📊 Executing client data query...');
     const result = await pool.request().query(getClientsQuery);
-    
-    console.log(`✅ Query executed successfully. Found ${result.recordset.length} clients.`);
+    console.log(`✅ Client query: ${result.recordset.length} rows`);
     
     // Transform the data to match the expected format
     const clientsData = result.recordset.map(row => ({
@@ -47,13 +39,9 @@ async function fetchClientData() {
     // Create backup of existing file if it exists
     if (fs.existsSync(jsonPath)) {
       fs.copyFileSync(jsonPath, backupPath);
-      console.log('📋 Created backup of existing clients-data-manual.json');
     }
-    
-    // Write new data to JSON file
     fs.writeFileSync(jsonPath, JSON.stringify(clientsData, null, 2), 'utf8');
-    console.log(`✅ Client data saved to: ${jsonPath}`);
-    console.log(`📊 Total clients: ${clientsData.length}`);
+    console.log(`💾 ${clientsData.length} clients → ${jsonPath}`);
     
     return clientsData;
     

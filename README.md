@@ -273,20 +273,25 @@ Each client object contains:
 
 ```
 Employee camera Web/
-├── index.html              # Main dashboard HTML
-├── script.js               # Frontend JavaScript logic
-├── styles.css              # Dashboard styling
-├── playwright-server.js    # Express server for test execution
-├── playwright-tests.spec.js # Playwright test definitions
-├── playwright.config.js   # Playwright configuration
-├── test-db.js             # Database connection script
-├── package.json           # Dependencies and scripts
+├── index.html                 # Main dashboard HTML
+├── script.js                  # Frontend JavaScript
+├── styles.css                 # Dashboard styling (includes layout/z-index fixes)
+├── playwright-server.js       # Express server
+├── playwright-tests.spec.js   # Playwright tests
+├── playwright.config.js
+├── execute-ech-query-helper.js
+├── db-utils.js
+├── db-config.json             # DB connection settings
+├── test-db.js                 # Fetch clients into clients-data-manual.json
+├── package.json
 ├── queries/
+│   ├── ECH_query.sql          # Employee camera hours query for comparisons
 │   └── client-data/
-│       └── get-clients-original.sql  # SQL query for client data
-├── screenshots/           # Test screenshots
-├── test-results/          # Playwright test results
-└── README.md              # This file
+│       └── get-clients-original.sql
+├── logs/                      # Created at runtime: json/db, json/portal, comparison, metadata
+├── screenshots/
+├── test-results/
+└── README.md
 ```
 
 ## 🐛 Troubleshooting

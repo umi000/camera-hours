@@ -1,15 +1,14 @@
 SET NOCOUNT ON;
 
---DECLARE @StartDate DATE = '2021-12-01';
---DECLARE @EndDate DATE = '2021-12-31';
+DECLARE @StartDate DATE = '2021-12-01';
+DECLARE @EndDate DATE = '2021-12-31';
 -- 1. Handle Null Dates
 IF @StartDate IS NULL SET @StartDate = DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()), 0);
 IF @EndDate IS NULL SET @EndDate = GETDATE();
 -- 1. Filter Store Hierarchy (Restricted to Store 6166)
 IF OBJECT_ID('tempdb..#Stores') IS NOT NULL DROP TABLE #Stores;
-SELECT DISTINCT 74 as companyID, AM, RM, DM, SM, StoreID, StoreName 
-INTO #Stores 
-FROM {SERVER_NAME}.[{DBNAME}].dbo.storehierarchy 
+SELECT DISTINCT 74 as companyID, AM, RM, DM, SM, StoreID, StoreName INTO #Stores 
+FROM dbo.storehierarchy 
 WHERE  MONTH(fileDate) = MONTH(@EndDate) 
   AND YEAR(fileDate) = YEAR(@EndDate);
 
@@ -22,8 +21,8 @@ SELECT
     ei.employeeID,
     SUM(DATEDIFF(MINUTE, ei.punchintime, ei.PunchOuttime)) AS netHours
 INTO #EmployeeHoursFlatten
-FROM {SERVER_NAME}.[{DBNAME}].dbo.storemonitoring sm
-INNER JOIN {SERVER_NAME}.[{DBNAME}].dbo.employeeinandout ei ON sm.storemonitoringid = ei.storemonitoringid
+FROM dbo.storemonitoring sm
+INNER JOIN dbo.employeeinandout ei ON sm.storemonitoringid = ei.storemonitoringid
 INNER JOIN #Stores s ON sm.storeID = s.StoreID
 WHERE  CAST(ei.punchintime AS DATE) BETWEEN @StartDate AND @EndDate
 GROUP BY sm.storeMonitoringID, sm.monitoringForDate, sm.storeID, ei.employeeID;
@@ -34,7 +33,7 @@ SELECT
     s.StoreID, 
     CONVERT(DATETIME, CONVERT(VARCHAR(10), soc.processDate, 101)) AS TotalDays
 INTO #TotalMonitorDays
-FROM {SERVER_NAME}.[{DBNAME}].dbo.StoreOpenCloseDatesFlatten soc
+FROM dbo.StoreOpenCloseDatesFlatten soc
 INNER JOIN #Stores s ON soc.storeID = s.StoreID
 WHERE soc.processDate BETWEEN @StartDate AND @EndDate 
   AND soc.isClosed = 0;
@@ -46,9 +45,9 @@ SELECT
     sm.storeID,
     COUNT(DISTINCT sm.monitoringForDate) AS MonitorDaysCount
 INTO #StoreLevelMonitorDays
-FROM {SERVER_NAME}.[{DBNAME}].dbo.storemonitoring sm
+FROM dbo.storemonitoring sm
 INNER JOIN #Stores s ON sm.storeID = s.StoreID
-INNER JOIN {SERVER_NAME}.[{DBNAME}].dbo.employeeinandout ei ON sm.storemonitoringid = ei.storemonitoringid
+INNER JOIN dbo.employeeinandout ei ON sm.storemonitoringid = ei.storemonitoringid
 WHERE CAST(ei.punchintime AS DATE) BETWEEN @StartDate AND @EndDate
 GROUP BY sm.storeID;
 
@@ -60,19 +59,16 @@ select
     st.SM,
     st.StoreID,
     st.StoreName,
-    ehf.employeeID,
-    ei.userName AS employeename,
     CAST(SUM(ehf.netHours) / 60.0 AS DECIMAL(10,2)) AS NetCameraHours,
     MAX(slm.MonitorDaysCount) AS MonitorDays, -- Uses the Store-level count
-    (SELECT COUNT(TotalDays) FROM {SERVER_NAME}.[{DBNAME}].dbo.#TotalMonitorDays WHERE StoreID = st.StoreID) AS TotalDays
+    (SELECT COUNT(TotalDays) FROM dbo.#TotalMonitorDays WHERE StoreID = st.StoreID) AS TotalDays
 	into #last
-FROM {SERVER_NAME}.[{DBNAME}].dbo.#EmployeeHoursFlatten ehf
+FROM dbo.#EmployeeHoursFlatten ehf
 INNER JOIN #Stores st ON st.StoreID = ehf.storeID
-INNER JOIN {SERVER_NAME}.[{DBNAME}].dbo.employeeinformation ei ON ehf.employeeID = ei.employeeID
+INNER JOIN dbo.employeeinformation ei ON ehf.employeeID = ei.employeeID
 LEFT JOIN #StoreLevelMonitorDays slm ON st.StoreID = slm.storeID
 GROUP BY 
-    st.AM, st.RM, st.DM, st.SM, st.StoreID, st.StoreName, ehf.employeeID, ei.userName;
-
-	select RM,DM,SM,StoreName, employeename, NetCameraHours,MonitorDays,  TotalDays from #last
+    st.AM, st.RM, st.DM, st.SM, st.StoreID, st.StoreName;
+	select RM,DM,SM,StoreName, NetCameraHours,MonitorDays,  TotalDays from #last
 -- Cleanup
 DROP TABLE #Stores,#last ,#EmployeeHoursFlatten, #TotalMonitorDays ,#StoreLevelMonitorDays;

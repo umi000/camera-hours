@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const XLSX = require('xlsx');
 const { fetchClientData } = require('./test-db.js');
+const { compareDBAndPortal, resolveDbJsonPath, listPortalCandidates } = require('./compare-db-portal.js');
 
 // Remove color-related environment variables to prevent warnings
 // FORCE_COLOR and NO_COLOR conflict, causing Node.js warnings
@@ -100,6 +101,71 @@ function generateHtmlReport(clientName, clientId, reportData, timestamp, htmlTab
     </div>
 </body>
 </html>`;
+}
+
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function portalJsonDir() {
+  ensureDir(path.join(__dirname, 'logs'));
+  const jsonDir = path.join(__dirname, 'logs', 'json', 'portal');
+  ensureDir(jsonDir);
+  return jsonDir;
+}
+
+function buildSheetFromReportData(reportData) {
+  const worksheetData = [reportData.headers];
+  for (const row of reportData.rows) {
+    worksheetData.push(reportData.headers.map((h) => row[h] || ''));
+  }
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  const maxWidth = 50;
+  worksheet['!cols'] = reportData.headers.map((header) => {
+    const headerLength = header.length;
+    const maxDataLength = reportData.rows.reduce(
+      (max, row) => Math.max(max, String(row[header] || '').length),
+      headerLength
+    );
+    return { wch: Math.min(maxWidth, Math.max(headerLength, maxDataLength) + 2) };
+  });
+  return worksheet;
+}
+
+function writeReportExcel(excelFilePath, reportData, metadataRows) {
+  if (fs.existsSync(excelFilePath)) fs.unlinkSync(excelFilePath);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, buildSheetFromReportData(reportData), 'Report Data');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(metadataRows), 'Metadata');
+  XLSX.writeFile(workbook, excelFilePath);
+}
+
+/** Writes portal JSON (+ optional HTML). Returns { jsonFileName, jsonFilePath }. */
+function savePortalJsonAndOptionalHtml(clientName, clientId, reportData, timestamp, htmlTable, htmlReportArgs = [], jsonExtra = {}) {
+  const jsonDir = portalJsonDir();
+  const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '');
+  const jsonFileName = `${sanitizedClientName}-report-${Date.now()}.json`;
+  const jsonFilePath = path.join(jsonDir, jsonFileName);
+  const jsonData = {
+    clientName,
+    clientId: clientId || '',
+    timestamp: timestamp || new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
+    totalRows: reportData.rowCount,
+    headers: reportData.headers,
+    data: reportData.rows,
+    ...jsonExtra
+  };
+  fs.writeFileSync(jsonFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
+  console.log(`✅ JSON file created: ${jsonFileName} (${reportData.rowCount} rows)\n📁 ${jsonFilePath}`);
+  if (htmlTable) {
+    const htmlFileName = `${sanitizedClientName}-report-${Date.now()}.html`;
+    const htmlFilePath = path.join(jsonDir, htmlFileName);
+    const htmlContent = generateHtmlReport(clientName, clientId, reportData, timestamp, htmlTable, ...htmlReportArgs);
+    fs.writeFileSync(htmlFilePath, htmlContent, 'utf8');
+    console.log(`✅ HTML file created: ${htmlFileName}\n📁 ${htmlFilePath}`);
+  }
+  return { jsonFileName, jsonFilePath };
 }
 
 // SSE endpoint: browser connects and receives log events
@@ -333,83 +399,22 @@ app.post('/report-data', (req, res) => {
     console.log(`📊 Received report data for ${clientName}: ${reportData.rowCount} rows, ${reportData.headers.length} columns`);
     const excelFileName = 'report-data.xlsx';
     const excelFilePath = path.join(__dirname, excelFileName);
-    
-    if (fs.existsSync(excelFilePath)) {
-      fs.unlinkSync(excelFilePath);
-    }
-    
-    const worksheetData = [reportData.headers];
-    reportData.rows.forEach(row => {
-      const rowData = reportData.headers.map(header => row[header] || '');
-      worksheetData.push(rowData);
-    });
-    
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    
-    const maxWidth = 50;
-    const colWidths = reportData.headers.map(header => {
-      const headerLength = header.length;
-      const maxDataLength = reportData.rows.reduce((max, row) => {
-        return Math.max(max, String(row[header] || '').length);
-      }, headerLength);
-      return { wch: Math.min(maxWidth, Math.max(headerLength, maxDataLength) + 2) };
-    });
-    worksheet['!cols'] = colWidths;
-    
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report Data');
-    
-    const metadataSheet = XLSX.utils.aoa_to_sheet([
+    writeReportExcel(excelFilePath, reportData, [
       ['Client Name', clientName],
       ['Client ID', clientId || ''],
       ['Timestamp', timestamp || new Date().toISOString()],
       ['Total Rows', reportData.rowCount],
       ['Generated At', new Date().toLocaleString()]
     ]);
-    XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Metadata');
-    
-    XLSX.writeFile(workbook, excelFilePath);
     console.log(`✅ Excel file created: ${excelFileName} (${reportData.rowCount} rows)`);
-    
-    // Also save to JSON file in logs/json/portal directory
-    const logsDir = path.join(__dirname, 'logs');
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    const jsonDir = path.join(logsDir, 'json', 'portal');
-    if (!fs.existsSync(jsonDir)) {
-      fs.mkdirSync(jsonDir, { recursive: true });
-    }
-    
-    // Sanitize client name for filename
-    const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '');
-    const jsonFileName = `${sanitizedClientName}-report-${Date.now()}.json`;
-    const jsonFilePath = path.join(jsonDir, jsonFileName);
-    
-    const jsonData = {
-      clientName: clientName,
-      clientId: clientId || '',
-      timestamp: timestamp || new Date().toISOString(),
-      generatedAt: new Date().toISOString(),
-      totalRows: reportData.rowCount,
-      headers: reportData.headers,
-      data: reportData.rows
-    };
-    
-    fs.writeFileSync(jsonFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
-    console.log(`✅ JSON file created: ${jsonFileName} (${reportData.rowCount} rows)`);
-    console.log(`📁 JSON file path: ${jsonFilePath}`);
-    
-    // Save HTML table if provided
-    if (htmlTable) {
-      const htmlFileName = `${sanitizedClientName}-report-${Date.now()}.html`;
-      const htmlFilePath = path.join(jsonDir, htmlFileName);
-      const htmlContent = generateHtmlReport(clientName, clientId, reportData, timestamp, htmlTable);
-      
-      fs.writeFileSync(htmlFilePath, htmlContent, 'utf8');
-      console.log(`✅ HTML file created: ${htmlFileName}`);
-      console.log(`📁 HTML file path: ${htmlFilePath}`);
-    }
+
+    const { jsonFileName, jsonFilePath } = savePortalJsonAndOptionalHtml(
+      clientName,
+      clientId,
+      reportData,
+      timestamp,
+      htmlTable
+    );
     
     emitter.emit('message', { 
       type: 'info', 
@@ -552,37 +557,10 @@ app.post('/report-data-chunk-finalize', (req, res) => {
       rowCount: rows.length
     };
     
-    // Save to Excel and JSON (reuse existing logic)
     try {
       const excelFileName = 'report-data.xlsx';
       const excelFilePath = path.join(__dirname, excelFileName);
-      
-      if (fs.existsSync(excelFilePath)) {
-        fs.unlinkSync(excelFilePath);
-      }
-      
-      const worksheetData = [reportData.headers];
-      reportData.rows.forEach(row => {
-        const rowData = reportData.headers.map(header => row[header] || '');
-        worksheetData.push(rowData);
-      });
-      
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      
-      const maxWidth = 50;
-      const colWidths = reportData.headers.map(header => {
-        const headerLength = header.length;
-        const maxDataLength = reportData.rows.reduce((max, row) => {
-          return Math.max(max, String(row[header] || '').length);
-        }, headerLength);
-        return { wch: Math.min(maxWidth, Math.max(headerLength, maxDataLength) + 2) };
-      });
-      worksheet['!cols'] = colWidths;
-      
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report Data');
-      
-      const metadataSheet = XLSX.utils.aoa_to_sheet([
+      writeReportExcel(excelFilePath, reportData, [
         ['Client Name', clientName],
         ['Client ID', clientId || ''],
         ['Timestamp', timestamp || new Date().toISOString()],
@@ -591,51 +569,17 @@ app.post('/report-data-chunk-finalize', (req, res) => {
         ['Transfer Method', 'Chunked'],
         ['Transfer Time', `${transferTime}s`]
       ]);
-      XLSX.utils.book_append_sheet(workbook, metadataSheet, 'Metadata');
-      
-      XLSX.writeFile(workbook, excelFilePath);
       console.log(`✅ Excel file created: ${excelFileName} (${reportData.rowCount} rows)`);
-      
-      // Save to JSON file in logs/json/portal directory
-      const logsDir = path.join(__dirname, 'logs');
-      if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
-      }
-      const jsonDir = path.join(logsDir, 'json', 'portal');
-      if (!fs.existsSync(jsonDir)) {
-        fs.mkdirSync(jsonDir, { recursive: true });
-      }
-      
-      const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '');
-      const jsonFileName = `${sanitizedClientName}-report-${Date.now()}.json`;
-      const jsonFilePath = path.join(jsonDir, jsonFileName);
-      
-      const jsonData = {
-        clientName: clientName,
-        clientId: clientId || '',
-        timestamp: timestamp || new Date().toISOString(),
-        generatedAt: new Date().toISOString(),
-        totalRows: reportData.rowCount,
-        headers: reportData.headers,
-        data: reportData.rows,
-        transferMethod: 'chunked',
-        transferTime: `${transferTime}s`
-      };
-      
-      fs.writeFileSync(jsonFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
-      console.log(`✅ JSON file created: ${jsonFileName} (${reportData.rowCount} rows)`);
-      console.log(`📁 JSON file path: ${jsonFilePath}`);
-      
-      // Save HTML table if provided
-      if (htmlTable) {
-        const htmlFileName = `${sanitizedClientName}-report-${Date.now()}.html`;
-        const htmlFilePath = path.join(jsonDir, htmlFileName);
-        const htmlContent = generateHtmlReport(clientName, clientId, reportData, timestamp, htmlTable, 'chunked', `${transferTime}s`);
-        
-        fs.writeFileSync(htmlFilePath, htmlContent, 'utf8');
-        console.log(`✅ HTML file created: ${htmlFileName}`);
-        console.log(`📁 HTML file path: ${htmlFilePath}`);
-      }
+
+      const { jsonFileName } = savePortalJsonAndOptionalHtml(
+        clientName,
+        clientId,
+        reportData,
+        timestamp,
+        htmlTable,
+        ['chunked', `${transferTime}s`],
+        { transferMethod: 'chunked', transferTime: `${transferTime}s` }
+      );
       
       emitter.emit('message', { 
         type: 'info', 
@@ -700,321 +644,9 @@ app.get('/clients-data-manual.json', (req, res) => {
   }
 });
 
-
-// Comparison function: Compare DB data with Portal JSON and generate Excel
-function compareDBAndPortal(dbData, portalData, clientId, clientName) {
-  try {
-    // Normalize data structures
-    const dbRecords = Array.isArray(dbData) ? dbData : (dbData.data || []);
-    const portalRecords = Array.isArray(portalData) ? portalData : (portalData.data || []);
-    
-    // Create a mapping function to normalize field names - updated to match new query schema
-    const normalizeDBRecord = (record) => {
-      const storeName = String(record.StoreName || '').trim();
-      const userName = String(record.UserName || '').trim();
-      return {
-        RM: String(record.RM || '').trim(),
-        DM: String(record.DM || '').trim(),
-        StoreName: storeName,
-        UserName: userName,
-        CameraNetHours: parseFloat(record.CameraNetHours) || 0,
-        MonitoredPercent: parseFloat(record.MonitoredPercent) || 0,
-        // Create unique key: StoreName + UserName (case-insensitive)
-        uniqueKey: `${storeName.toLowerCase()}_${userName.toLowerCase()}`
-      };
-    };
-    
-    const normalizePortalRecord = (record) => {
-      const storeName = String(record.StoreName || '').trim();
-      const userName = String(record.UserName || '').trim();
-      return {
-        RM: String(record.RM || '').trim(),
-        DM: String(record.DM || '').trim(),
-        StoreName: storeName,
-        UserName: userName,
-        CameraNetHours: parseFloat(record.CameraNetHours) || 0,
-        MonitoredPercent: parseFloat(record.MonitoredPercent) || 0,
-        // Create unique key: StoreName + UserName (case-insensitive)
-        uniqueKey: `${storeName.toLowerCase()}_${userName.toLowerCase()}`
-      };
-    };
-    
-    // Helper function to check if a record should be filtered out (header/total rows)
-    const shouldFilterRecord = (record) => {
-      const userName = String(record.UserName || '').trim().toLowerCase();
-      const storeName = String(record.StoreName || '').trim().toLowerCase();
-      const rm = String(record.RM || '').trim().toLowerCase();
-      const dm = String(record.DM || '').trim().toLowerCase();
-      
-      // Skip rows without UserName (header/total rows or rowspan continuation)
-      if (!userName || userName.length === 0) {
-        return true;
-      }
-      
-      // Skip total rows
-      if (userName.includes('total') || storeName.includes('total')) {
-        return true;
-      }
-      
-      // Skip header rows - check if values match common header column names
-      const headerValues = ['rm', 'dm', 'store name', 'storename', 'user name', 'username', 
-                           'camera net hours', 'cameranethours', 'monitored', 'monitoredpercent',
-                           'monitored percent', 'monitored days', 'total days'];
-      if (headerValues.includes(userName) || headerValues.includes(storeName) || 
-          headerValues.includes(rm) || headerValues.includes(dm)) {
-        return true;
-      }
-      
-      return false;
-    };
-    
-    // Normalize all records
-    const normalizedDB = dbRecords.map(normalizeDBRecord);
-    const normalizedPortal = portalRecords.map(normalizePortalRecord);
-    
-    // Filter out header/total rows before comparison
-    const filteredDB = normalizedDB.filter(record => !shouldFilterRecord(record));
-    const filteredPortal = normalizedPortal.filter(record => !shouldFilterRecord(record));
-    
-    console.log(`📊 Filtered records: DB ${normalizedDB.length} → ${filteredDB.length}, Portal ${normalizedPortal.length} → ${filteredPortal.length}`);
-    
-    // Create maps for quick lookup
-    const dbMap = new Map();
-    filteredDB.forEach(record => {
-      dbMap.set(record.uniqueKey, record);
-    });
-    
-    const portalMap = new Map();
-    filteredPortal.forEach(record => {
-      portalMap.set(record.uniqueKey, record);
-    });
-    
-    // Get all unique keys
-    const allKeys = new Set([...dbMap.keys(), ...portalMap.keys()]);
-    
-    // Build comparison results
-    const differences = [];
-    const dbOnly = [];
-    const portalOnly = [];
-    
-    allKeys.forEach(key => {
-      const dbRecord = dbMap.get(key);
-      const portalRecord = portalMap.get(key);
-      
-      if (!dbRecord && portalRecord) {
-        // Only in portal
-        portalOnly.push({
-          uniqueKey: key,
-          StoreName: portalRecord.StoreName,
-          UserName: portalRecord.UserName,
-          ...portalRecord
-        });
-        differences.push({
-          uniqueKey: key,
-          status: 'PORTAL_ONLY',
-          comparisonSummary: 'Record exists only in Portal data',
-          RM: portalRecord.RM,
-          DM: portalRecord.DM,
-          StoreName: portalRecord.StoreName,
-          UserName: portalRecord.UserName,
-          CameraNetHours: portalRecord.CameraNetHours,
-          MonitoredPercent: portalRecord.MonitoredPercent
-        });
-      } else if (dbRecord && !portalRecord) {
-        // Only in DB
-        dbOnly.push({
-          uniqueKey: key,
-          StoreName: dbRecord.StoreName,
-          UserName: dbRecord.UserName,
-          ...dbRecord
-        });
-        differences.push({
-          uniqueKey: key,
-          status: 'DB_ONLY',
-          comparisonSummary: 'Record exists only in DB data',
-          RM: dbRecord.RM,
-          DM: dbRecord.DM,
-          StoreName: dbRecord.StoreName,
-          UserName: dbRecord.UserName,
-          CameraNetHours: dbRecord.CameraNetHours,
-          MonitoredPercent: dbRecord.MonitoredPercent
-        });
-      } else if (dbRecord && portalRecord) {
-        // Compare only the specified fields: RM, DM, StoreName, UserName, CameraNetHours, MonitoredPercent
-        const mismatches = [];
-        
-        // Compare each field
-        const fieldsToCompare = [
-          { name: 'RM', dbValue: dbRecord.RM, portalValue: portalRecord.RM },
-          { name: 'DM', dbValue: dbRecord.DM, portalValue: portalRecord.DM },
-          { name: 'StoreName', dbValue: dbRecord.StoreName, portalValue: portalRecord.StoreName },
-          { name: 'UserName', dbValue: dbRecord.UserName, portalValue: portalRecord.UserName },
-          { name: 'CameraNetHours', dbValue: dbRecord.CameraNetHours, portalValue: portalRecord.CameraNetHours },
-          { name: 'MonitoredPercent', dbValue: dbRecord.MonitoredPercent, portalValue: portalRecord.MonitoredPercent }
-        ];
-        
-        fieldsToCompare.forEach(field => {
-          let dbVal = field.dbValue;
-          let portalVal = field.portalValue;
-          
-          // Handle numeric fields
-          if (field.name === 'CameraNetHours' || field.name === 'MonitoredPercent') {
-            const dbNum = parseFloat(dbVal) || 0;
-            const portalNum = parseFloat(portalVal) || 0;
-            if (Math.abs(dbNum - portalNum) > 0.01) { // Allow small floating point differences
-              mismatches.push(`${field.name}: DB="${dbNum}" Portal="${portalNum}"`);
-            }
-          } else {
-            // String comparison
-            const dbStr = String(dbVal || '').trim().toLowerCase();
-            const portalStr = String(portalVal || '').trim().toLowerCase();
-            if (dbStr !== portalStr) {
-              mismatches.push(`${field.name}: DB="${dbVal}" Portal="${portalVal}"`);
-            }
-          }
-        });
-        
-        if (mismatches.length > 0) {
-          differences.push({
-            uniqueKey: key,
-            status: 'DIFFERENT',
-            comparisonSummary: mismatches.join('; '),
-            RM: dbRecord.RM,
-            DM: dbRecord.DM,
-            StoreName: dbRecord.StoreName || portalRecord.StoreName,
-            UserName: dbRecord.UserName,
-            CameraNetHours: dbRecord.CameraNetHours,
-            MonitoredPercent: dbRecord.MonitoredPercent,
-            portal_RM: portalRecord.RM,
-            portal_DM: portalRecord.DM,
-            portal_StoreName: portalRecord.StoreName,
-            portal_UserName: portalRecord.UserName,
-            portal_CameraNetHours: portalRecord.CameraNetHours,
-            portal_MonitoredPercent: portalRecord.MonitoredPercent
-          });
-        }
-      }
-    });
-    
-    // Create Excel workbook with 3 sheets - only showing specified columns
-    const workbook = XLSX.utils.book_new();
-    
-    // Sheet 1: DB Data - only specified columns (filtered)
-    const dbHeaders = ['RM', 'DM', 'StoreName', 'UserName', 'CameraNetHours', 'MonitoredPercent'];
-    const dbSheetData = [dbHeaders];
-    filteredDB.forEach(record => {
-      dbSheetData.push(dbHeaders.map(header => record[header] || ''));
-    });
-    const dbWorksheet = XLSX.utils.aoa_to_sheet(dbSheetData);
-    XLSX.utils.book_append_sheet(workbook, dbWorksheet, 'DB Data');
-    
-    // Sheet 2: Portal Data - only specified columns (filtered)
-    const portalHeaders = ['RM', 'DM', 'StoreName', 'UserName', 'CameraNetHours', 'MonitoredPercent'];
-    const portalSheetData = [portalHeaders];
-    filteredPortal.forEach(record => {
-      portalSheetData.push(portalHeaders.map(header => record[header] || ''));
-    });
-    const portalWorksheet = XLSX.utils.aoa_to_sheet(portalSheetData);
-    XLSX.utils.book_append_sheet(workbook, portalWorksheet, 'Portal Data');
-    
-    // Sheet 3: Differences - only specified columns plus status and comparison summary
-    const diffHeaders = ['status', 'RM', 'DM', 'StoreName', 'UserName', 'CameraNetHours', 'MonitoredPercent',
-                         'portal_RM', 'portal_DM', 'portal_StoreName', 'portal_UserName', 'portal_CameraNetHours', 
-                         'portal_MonitoredPercent', 'comparisonSummary'];
-    const diffSheetData = [diffHeaders];
-    
-    differences.forEach(diff => {
-      const row = diffHeaders.map(header => {
-        if (header === 'comparisonSummary') {
-          return diff[header] || '';
-        }
-        return diff[header] || '';
-      });
-      diffSheetData.push(row);
-    });
-    
-    const diffWorksheet = XLSX.utils.aoa_to_sheet(diffSheetData);
-    
-    // Apply basic styling to highlight differences (XLSX has limited styling support)
-    // Note: Full styling may not work in all Excel readers, but data will be present
-    const range = XLSX.utils.decode_range(diffWorksheet['!ref'] || 'A1');
-    for (let R = 1; R <= range.e.r; R++) {
-      const diff = differences[R - 1];
-      if (diff) {
-        // Add status indicator in first column for visual identification
-        const statusCell = XLSX.utils.encode_cell({ r: R, c: 0 });
-        if (diffWorksheet[statusCell]) {
-          // Add comment or prefix to status for identification
-          const statusPrefix = diff.status === 'DIFFERENT' ? '⚠️ ' : 
-                              diff.status === 'DB_ONLY' ? '🔴 ' : 
-                              diff.status === 'PORTAL_ONLY' ? '🟢 ' : '';
-          if (statusPrefix && !diffWorksheet[statusCell].v?.startsWith(statusPrefix)) {
-            diffWorksheet[statusCell].v = statusPrefix + (diffWorksheet[statusCell].v || diff.status);
-          }
-        }
-      }
-    }
-    
-    // Set column widths
-    const colWidths = diffHeaders.map((header, idx) => {
-      if (header === 'comparisonSummary') {
-        return { wch: 80 }; // Wider for summary
-      }
-      if (header === 'status') {
-        return { wch: 15 };
-      }
-      if (header.startsWith('portal_')) {
-        return { wch: 18 }; // Slightly narrower for portal columns
-      }
-      return { wch: 20 };
-    });
-    diffWorksheet['!cols'] = colWidths;
-    
-    XLSX.utils.book_append_sheet(workbook, diffWorksheet, 'Differences');
-    
-    // Save Excel file
-    const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
-    const excelFileName = `${sanitizedClientName}-comparison-${clientId}-${Date.now()}.xlsx`;
-    const logsDir = path.join(__dirname, 'logs');
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    const excelDir = path.join(logsDir, 'comparison');
-    if (!fs.existsSync(excelDir)) {
-      fs.mkdirSync(excelDir, { recursive: true });
-    }
-    const excelFilePath = path.join(excelDir, excelFileName);
-    
-    XLSX.writeFile(workbook, excelFilePath);
-    
-    return {
-      success: true,
-      filePath: excelFilePath,
-      fileName: excelFileName,
-      stats: {
-        totalDBRecords: filteredDB.length,
-        totalPortalRecords: filteredPortal.length,
-        differences: differences.length,
-        dbOnly: dbOnly.length,
-        portalOnly: portalOnly.length,
-        matching: filteredDB.length - differences.filter(d => d.status === 'DIFFERENT' || d.status === 'DB_ONLY').length
-      }
-    };
-  } catch (error) {
-    console.error('❌ Error in comparison function:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
 // Endpoint to compare DB and Portal data
 app.post('/compare-data', async (req, res) => {
   try {
-    console.log(`📥 Received POST /compare-data request`);
-    console.log(`📦 Request body:`, JSON.stringify(req.body, null, 2));
-    
     const { clientId, clientName } = req.body;
     
     if (!clientId) {
@@ -1027,76 +659,50 @@ app.post('/compare-data', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'clientName is required' });
     }
     
-    console.log(`🔍 Starting comparison for client: ${clientName} (ID: ${clientId})`);
+    console.log(`🔍 Compare DB vs portal: ${clientName} (id ${clientId})`);
     
-    // Load DB data - try multiple sanitization approaches for client name matching
     const sanitizedClientName1 = clientName.replace(/[^a-zA-Z0-9]/g, '');
-    const sanitizedClientName2 = clientName.replace(/[^a-zA-Z0-9]/g, '_');
-    
-    // Try to find DB file with different naming patterns
-    let dbFilePath = path.join(__dirname, 'logs', 'json', 'db', `${sanitizedClientName1}.json`);
-    if (!fs.existsSync(dbFilePath)) {
-        // Try alternative naming
-        dbFilePath = path.join(__dirname, 'logs', 'json', 'db', `${sanitizedClientName2}.json`);
-        if (!fs.existsSync(dbFilePath)) {
-          // Try to find any file that contains the client name
-          const dbDir = path.join(__dirname, 'logs', 'json', 'db');
-        const dbFiles = fs.readdirSync(dbDir)
-          .filter(file => file.endsWith('.json'))
-          .map(file => ({
-            name: file,
-            path: path.join(dbDir, file),
-            data: JSON.parse(fs.readFileSync(path.join(dbDir, file), 'utf8'))
-          }))
-          .find(file => {
-            const clientNameInFile = file.data.clientName || '';
-            return clientNameInFile.toLowerCase() === clientName.toLowerCase() ||
-                   clientNameInFile.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === sanitizedClientName1.toLowerCase();
-          });
-        
-        if (dbFiles) {
-          dbFilePath = dbFiles.path;
-        } else {
-          return res.status(404).json({ status: 'error', message: `DB file not found for ${clientName}. Tried: ${sanitizedClientName1}.json and ${sanitizedClientName2}.json` });
-        }
-      }
-    }
-    
-    const dbData = JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
-    
-    // Find latest portal JSON file for this client - try multiple matching approaches
-    const portalDir = path.join(__dirname, 'logs', 'json', 'portal');
-    const allPortalFiles = fs.readdirSync(portalDir)
-      .filter(file => file.endsWith('.json'))
-      .map(file => ({
-        name: file,
-        path: path.join(portalDir, file),
-        time: fs.statSync(path.join(portalDir, file)).mtime.getTime(),
-        data: JSON.parse(fs.readFileSync(path.join(portalDir, file), 'utf8'))
-      }));
-    
-    // Try to match by filename first
-    let portalFiles = allPortalFiles.filter(file => {
-      const fileNameLower = file.name.toLowerCase();
-      const clientNameLower = clientName.toLowerCase();
-      const sanitized1 = sanitizedClientName1.toLowerCase();
-      const sanitized2 = sanitizedClientName2.toLowerCase();
-      
-      return fileNameLower.includes(sanitized1) || 
-             fileNameLower.includes(sanitized2) ||
-             fileNameLower.includes(clientNameLower.replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
-    });
-    
-    // If no match by filename, try matching by clientName in JSON data
-    if (portalFiles.length === 0) {
-      portalFiles = allPortalFiles.filter(file => {
-        const clientNameInFile = (file.data.clientName || '').toLowerCase();
-        return clientNameInFile === clientName.toLowerCase() ||
-               clientNameInFile.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === sanitizedClientName1.toLowerCase();
+
+    const dbDir = path.join(__dirname, 'logs', 'json', 'db');
+    if (!fs.existsSync(dbDir)) {
+      return res.status(404).json({
+        status: 'error',
+        message: `DB export folder missing: ${dbDir}. Run Generate Report (or Playwright with ECH) so logs/json/db/<Client>.json is created.`
       });
     }
+
+    const dbFilePath = resolveDbJsonPath(dbDir, clientName);
+    if (!dbFilePath) {
+      return res.status(404).json({
+        status: 'error',
+        message: `DB file not found for "${clientName}". Expected ${sanitizedClientName1}.json under logs/json/db (run report + ECH first).`
+      });
+    }
+
+    let dbData;
+    try {
+      dbData = JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
+    } catch (e) {
+      return res.status(500).json({ status: 'error', message: `Invalid DB JSON at ${dbFilePath}: ${e.message}` });
+    }
+
+    const dbRowCount = Array.isArray(dbData.data) ? dbData.data.length : (Array.isArray(dbData) ? dbData.length : 0);
+    console.log(`📂 DB file: ${dbFilePath} (${dbRowCount} raw rows)`);
     
-    portalFiles.sort((a, b) => b.time - a.time);
+    const portalDir = path.join(__dirname, 'logs', 'json', 'portal');
+    if (!fs.existsSync(portalDir)) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Portal export folder missing: ${portalDir}. Run Generate Report first.`
+      });
+    }
+
+    let portalFiles;
+    try {
+      portalFiles = listPortalCandidates(portalDir, clientName, clientId);
+    } catch (e) {
+      return res.status(500).json({ status: 'error', message: `Cannot read portal folder: ${e.message}` });
+    }
     
     if (portalFiles.length === 0) {
       return res.status(404).json({ status: 'error', message: `No portal data found for ${clientName}. Searched in ${portalDir}` });
@@ -1113,15 +719,9 @@ app.post('/compare-data', async (req, res) => {
     
     console.log(`✅ Comparison completed for ${clientName}:`, result.stats);
     
-    // Save comparison metadata to logs
-    const logsDir = path.join(__dirname, 'logs');
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
-    }
-    const metadataDir = path.join(logsDir, 'metadata');
-    if (!fs.existsSync(metadataDir)) {
-      fs.mkdirSync(metadataDir, { recursive: true });
-    }
+    const metadataDir = path.join(__dirname, 'logs', 'metadata');
+    ensureDir(path.join(__dirname, 'logs'));
+    ensureDir(metadataDir);
     
     const metadata = {
       clientId: clientId,
@@ -1294,30 +894,11 @@ function startServer() {
   });
   
   app.listen(PORT, () => {
-    console.log('==========================================');
-    console.log('Employee Camera Hours Dashboard');
-    console.log('==========================================\n');
-    console.log(`🚀 Playwright Test Server running on http://localhost:${PORT}`);
-    console.log(`📝 Server logs are being written to: ${logFilePath}`);
-    console.log('📋 Available endpoints:');
-    console.log('   GET  /events - Server-Sent Events stream');
-    console.log('   POST /run-tests - Start Playwright tests');
-    console.log('   POST /update-client-data - Update client data from database');
-    console.log('   POST /report-data - Receive report data (single request)');
-    console.log('   POST /report-data-chunk-start - Initialize chunked transfer');
-    console.log('   POST /report-data-chunk - Receive chunk of data');
-    console.log('   POST /report-data-chunk-finalize - Finalize chunked transfer');
-    console.log('   ✅ POST /compare-data - Compare DB and Portal data, generate Excel');
-    console.log('   ✅ GET  /download-comparison/:clientId - Download comparison Excel file');
-    console.log('   ✅ GET  /logs - List all comparison logs');
-    console.log('   GET  /health - Health check');
-    console.log('   GET  /clients-data-manual.json - Client data file');
-    console.log('   GET  / - Main dashboard');
-    console.log('\n✅ All routes registered successfully!');
-    console.log('Press Ctrl+C to stop the server\n');
+    console.log(
+      `Employee Camera Hours Dashboard | http://localhost:${PORT} | log: ${logFilePath}\n` +
+        'API: POST /run-tests /report-data /compare-data | GET /events /health /logs /clients-data-manual.json'
+    );
     logToFile('INFO', `Server started on port ${PORT} - All routes registered`);
-    
-    // Run database update on server startup
     console.log('🔄 Running database update on startup...');
     fetchClientData()
       .then((clientsData) => {

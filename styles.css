@@ -3772,3 +3772,69 @@ select:focus-visible {
         gap: 8px;
     }
 }
+
+/* Performance / overlap (merged from former performance-fix.css) */
+.dashboard-form,
+.console-section,
+.progress-section,
+.results-section {
+    transform: translateZ(0);
+}
+
+.custom-calendar {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    z-index: 10002 !important;
+}
+
+.dropdown-options {
+    z-index: 10001 !important;
+}
+
+.multi-select-dropdown {
+    z-index: 10001 !important;
+}
+
+.multi-select-trigger,
+.dropdown-trigger,
+.calendar-trigger {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.console-output-box,
+.options-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+.progress-fill {
+    will-change: width;
+}
+
+@media (max-width: 768px) {
+    .custom-calendar {
+        position: fixed;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) translateZ(0);
+        max-width: 90vw;
+        width: 90vw;
+        z-index: 10003 !important;
+    }
+
+    .custom-date-input {
+        z-index: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .multi-select-dropdown,
+    .dropdown-options {
+        position: fixed;
+        left: 1rem;
+        right: 1rem;
+        max-width: calc(100vw - 2rem);
+        z-index: 10003 !important;
+    }
+}

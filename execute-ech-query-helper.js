@@ -94,27 +94,20 @@ async function executeECHQuery(client, startDate, endDate) {
         query = query.replace(/74 AS companyID/g, `${companyID} AS companyID`);
 
         const dbConfig = getDbConfig();
-        console.log(`🔌 Connecting to database for client: ${client.name}`);
-        console.log(`   Server: ${dbConfig.server}`);
-        console.log(`   Connection Database: master (for linked server access)`);
-        console.log(`   Query Database: ${client.dbname} (via ${serverName})`);
-        console.log(`   Server Name (for query): ${serverName}`);
-        console.log(`   Company ID: ${companyID}`);
-        console.log(`   Date Range: ${formattedStartDate} to ${formattedEndDate}`);
+        console.log(
+          `🔌 ${client.name}: ${dbConfig.server} → master → ${serverName}.${client.dbname} | company ${companyID} | ${formattedStartDate}–${formattedEndDate}`
+        );
 
-        // Create connection pool to master database to access linked servers
-        // We connect to master because linked server queries work better from there
         pool = await createConnectionPool('master');
-
-        console.log(`✅ Connected to master database`);
-        console.log(`📊 Executing ECH query on ${serverName}.${client.dbname}...`);
+        console.log(`📊 Executing ECH query…`);
 
         // Execute the SQL query
         const result = await pool.request().query(query);
 
-        console.log(`✅ Query executed successfully. Found ${result.recordset.length} records.`);
+        const rows = Array.isArray(result.recordset) ? result.recordset : [];
+        console.log(`✅ Query executed successfully. Found ${rows.length} records.`);
 
-        return result.recordset;
+        return rows;
 
     } catch (error) {
         console.error(`❌ Error executing ECH query for ${client.name}:`, error.message);
@@ -135,14 +128,9 @@ async function executeECHQuery(client, startDate, endDate) {
  */
 function saveResultsToJSON(clientName, data) {
     // Create logs/json/db directory if it doesn't exist
-    const logsDir = path.join(__dirname, 'logs');
-    if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
-    }
-    const jsonDir = path.join(logsDir, 'json', 'db');
+    const jsonDir = path.join(__dirname, 'logs', 'json', 'db');
     if (!fs.existsSync(jsonDir)) {
         fs.mkdirSync(jsonDir, { recursive: true });
-        console.log(`📁 Created logs/json/db directory: ${jsonDir}`);
     }
 
     // Sanitize client name for filename (remove special characters and spaces)
@@ -151,19 +139,21 @@ function saveResultsToJSON(clientName, data) {
     const filename = `${sanitizedClientName}.json`;
     const filePath = path.join(jsonDir, filename);
 
+    const rows = Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) console.warn('⚠️ saveResultsToJSON: result was not an array; saving 0 rows');
+
     // Prepare data with metadata
     const jsonData = {
         clientName: clientName,
         generatedAt: new Date().toISOString(),
-        recordCount: data.length,
-        data: data
+        recordCount: rows.length,
+        data: rows
     };
 
     // Write to file
     fs.writeFileSync(filePath, JSON.stringify(jsonData, null, 2), 'utf8');
 
-    console.log(`✅ Results saved to: ${filePath}`);
-    console.log(`📊 Total records: ${data.length}`);
+    console.log(`✅ Saved ${rows.length} records → ${filePath}`);
 
     return filePath;
 }
